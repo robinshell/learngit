@@ -24,7 +24,7 @@ latdown=31.542055#这四个是上下左右四个点谷歌经纬度
 def t2s(t):
     h,m,s = t.strip().split(":")
     return int(h) * 3600 + int(m) * 60 + int(s)
-
+carColors=['red','yellow','blue','green','purple','white']
 class MyMainWindow(QMainWindow,Ui_MainWindow):
     def __init__(self,parent=None):
         super(MyMainWindow,self).__init__(parent)
@@ -49,9 +49,12 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             #plt.xlim(lonleft,lonright)
         self.matplotlibwidget.axes.set_xticks([])
         self.matplotlibwidget.axes.set_yticks([])
-        #self.matplotlibwidget.axes.show()
-        self.templon=0#用于实时轨迹
-        self.templat=0#用于实时轨迹
+        #####################
+        self.templon_1=0#用于1号车实时轨迹
+        self.templat_1=0#用于1号车实时轨迹
+        self.templon_2=0#用于2号车实时轨迹
+        self.templat_2=0#用于2号车实时轨迹
+        ######################
         self.db = QtSql.QSqlDatabase.addDatabase('QMYSQL')
         self.db.setHostName('101.132.150.191')
         self.db.setDatabaseName('mysql')
@@ -64,7 +67,11 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.timer1.timeout.connect(self.update_lines)
         self.timer2=QTimer(self)
         self.timer2.timeout.connect(self.real_time_drawing)
-        self.cbxSelectFork.currentIndexChanged.connect(self.forkChanged)
+        
+        self.btnOpenFile.clicked.connect(self.openfile)
+        self.btnStart.clicked.connect(self.startDraw)
+        self.btnStop.clicked.connect(self.stopDraw)
+        self.btnReset.clicked.connect(self.resetDraw)
         
     def openfile(self):
         self.btnStart.setEnabled(True)
@@ -194,13 +201,19 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.matplotlibwidget.axes.set_xticks([])
                 self.matplotlibwidget.axes.set_yticks([])
                 self.isdrawreset=False#只有这里能清除重置位
-                self.templon=0#用于实时轨迹
-                self.templat=0#用于实时轨迹
-            self.databasename='siemens_location'
-            if self.cbxSelectFork.currentIndex()==1:
-                self.databasename='siemens_location1'
+                
+                self.templon_1=0#用于实时轨迹
+                self.templat_1=0#用于实时轨迹
+                self.templon_2=0#用于实时轨迹
+                self.templat_2=0#用于实时轨迹
+                
+            self.databasename_1='siemens_location'
+            self.databasename_2='siemens_location1'
+            self.carColor_1=carColors[int(self.cbxCarColor1.currentIndex())]
+            self.carColor_2=carColors[int(self.cbxCarColor2.currentIndex())]
+            
             self.btnStart.setEnabled(False)
-            self.cbxSelectFork.setEnabled(False)
+            self.btnStop.setEnabled(False)
             self.cbxSelectFunction.setEnabled(False)
             self.timer2.start(1000)    
         
@@ -227,7 +240,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 #self.matplotlibwidget.axes.plot([120.363329,120.364820],[31.542712,31.544165],c='r')
             self.matplotlibwidget.draw()
             self.lblShowTime.setText(self.times[self.tempindex])
-            self.lblStarNums.setText(self.starnum[self.tempindex])
+            self.lblStarNums1.setText(self.starnum[self.tempindex])
             #self.statusbar.showMessage('测试',2000)
             self.tempindex+=10
         else:
@@ -244,33 +257,29 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             #self.matplotlibwidget.axes.scatter(self.lon[self.tempindex:self.endindex], self.lat[self.tempindex:self.endindex], c='r')
             self.matplotlibwidget.draw()
             self.lblShowTime.setText(self.times[self.tempindex])
-            self.lblStarNums.setText(self.starnum[self.tempindex])
+            self.lblStarNums1.setText(self.starnum[self.tempindex])
             self.statusbar.showMessage('画图完毕',2000)
             self.timer1.stop()
             self.btnStart.setEnabled(True)
             self.isdrawreset=True
         
         
-        #self.draw()
         
-        #return self.ln,
     def stopDraw(self):
         self.btnStart.setEnabled(True)
         if not self.isdrawstop:
             self.isdrawstop=True
             self.timer1.stop()
             self.timer2.stop()
-            #self.ani._stop()
             self.statusbar.showMessage('画图暂停',2000)
     def resetDraw(self):
         self.btnStart.setEnabled(True)
+        self.btnStop.setEnabled(True)
         if not self.isdrawstop:
             self.isdrawstop=True
             #self.ani._stop()
         self.timer1.stop()
         self.timer2.stop()
-        if self.cbxSelectFunction.currentIndex()==1:
-            self.cbxSelectFork.setEnabled(True)
         self.cbxSelectFunction.setEnabled(True)
         self.statusbar.showMessage('画图完毕',2000)
         self.isdrawreset=True
@@ -282,39 +291,64 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         if not self.db.open():
             self.statusbar.showMessage('数据库未连接',1000)
             self.btnStart.setEnabled(True)
-            self.cbxSelectFork.setEnabled(True)
+            #self.cbxSelectFork.setEnabled(True)
             self.cbxSelectFunction.setEnabled(True)
             self.isdrawreset=True
             return
         self.timer2.start(1000)
-        query = QtSql.QSqlQuery("SELECT pulseCount,longitude,latitude,datetime,starnum FROM "+self.databasename+" ORDER BY id DESC LIMIT 1;")
-        query.first()
-        #self.statusbar.showMessage(str(query.value(0)),5000)
-        curlon=float(query.value(1))
-        curlat=float(query.value(2))
-        speed=int(query.value(0))
-        datetime=query.value(3).toString(Qt.ISODate)
-        if curlon==self.templon and curlat == self.templat:
-            self.db.close()
-            return
-        if curlon>lonleft and curlon<lonright and curlat>latdown and curlat<latup:
-            if self.templon==0:
-                self.templon=curlon
-                self.templat=curlat
-                self.lblShowDate.setText(datetime[:10])
-            else:
-                if speed<5: 
-                    self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='r')
-                elif speed<50:
-                    self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='orange')
+        if self.chbxCar1.isChecked(): 
+            query_1 = QtSql.QSqlQuery("SELECT pulseCount,longitude,latitude,datetime,starnum FROM "+self.databasename_1+" ORDER BY id DESC LIMIT 1;")
+            query_1.first()
+            #self.statusbar.showMessage(str(query.value(0)),5000)
+            curlon=float(query_1.value(1))
+            curlat=float(query_1.value(2))
+            #speed=int(query_1.value(0))
+            datetime=query_1.value(3).toString(Qt.ISODate)
+            if curlon==self.templon_1 and curlat == self.templat_1:
+                pass
+            elif curlon>lonleft and curlon<lonright and curlat>latdown and curlat<latup:
+                if self.templon_1==0:
+                    self.templon_1=curlon
+                    self.templat_1=curlat
+                    self.lblShowDate.setText(datetime[:10])
                 else:
-                    self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='y')
-                self.matplotlibwidget.draw()
-                self.templon=curlon
-                self.templat=curlat
+                    '''if speed<5: 
+                        self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='r')
+                    elif speed<50:
+                        self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='orange')
+                    else:'''
+                    self.matplotlibwidget.axes.plot([self.templon_1,curlon], [self.templat_1,curlat], c=self.carColor_1)
+                    self.matplotlibwidget.draw()
+                    self.templon_1=curlon
+                    self.templat_1=curlat
+                self.lblStarNums1.setText(str(query_1.value(4)))
+                self.lblShowTime.setText(datetime[-8:])
+        if self.chbxCar2.isChecked(): 
+            query = QtSql.QSqlQuery("SELECT pulseCount,longitude,latitude,datetime,starnum FROM "+self.databasename_2+" ORDER BY id DESC LIMIT 1;")
+            query.first()
+            #self.statusbar.showMessage(str(query.value(0)),5000)
+            curlon=float(query.value(1))
+            curlat=float(query.value(2))
+            #speed=int(query.value(0))
+            datetime=query.value(3).toString(Qt.ISODate)
+            if curlon==self.templon_2 and curlat == self.templat_2:
+                pass
+            elif curlon>lonleft and curlon<lonright and curlat>latdown and curlat<latup:
+                if self.templon_2==0:
+                    self.lblShowDate.setText(datetime[:10])
+                else:
+                    '''if speed<5: 
+                        self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='r')
+                    elif speed<50:
+                        self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='orange')
+                    else:'''
+                    self.matplotlibwidget.axes.plot([self.templon_2,curlon], [self.templat_2,curlat], c=self.carColor_2)
+                    self.matplotlibwidget.draw()
+                self.templon_2=curlon
+                self.templat_2=curlat
                 
-        self.lblStarNums.setText(str(query.value(4)))
-        self.lblShowTime.setText(datetime[-8:])
+                self.lblStarNums2.setText(str(query.value(4)))
+                self.lblShowTime.setText(datetime[-8:])
                         
         #self.statusbar.showMessage(datetime,5000)
         #print(datetime)
@@ -326,20 +360,12 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
     def functionChanged(self):
         self.stackedWidget.setCurrentIndex(self.cbxSelectFunction.currentIndex())
         self.isdrawreset=True
-    def forkChanged(self):
-        self.isdrawreset=True
+
         
         
 if __name__=="__main__":
     app=QApplication(sys.argv)
     myWin=MyMainWindow()
-    myWin.btnOpenFile.clicked.connect(myWin.openfile)
-    myWin.btnStart.clicked.connect(myWin.startDraw)
-    myWin.btnStop.clicked.connect(myWin.stopDraw)
-    myWin.btnReset.clicked.connect(myWin.resetDraw)
-    
-    '''myWin.timer2=QTimer(myWin)
-    myWin.timer2.timeout.connect(myWin.real_time_drawing)'''
     myWin.show()
     sys.exit(app.exec_())
  
