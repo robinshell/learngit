@@ -2,11 +2,12 @@ import sys
 #from PyQt5.QtGui import QIcon
 from PyQt5 import QtSql
 from PyQt5.QtWidgets import (QApplication,QMainWindow,QFileDialog)
+from dialogdisplayform import *
 from displayform import *#
-from PyQt5.QtCore import QTimer, QDateTime, Qt
+from PyQt5.QtCore import QTimer, QTime, Qt
 import csv
 #import pylab
-from datetime import datetime
+#from datetime import datetime
 from matplotlib import pyplot as plt
 import matplotlib.image as mpimg
 #import time
@@ -24,11 +25,38 @@ latdown=31.542055#这四个是上下左右四个点谷歌经纬度
 def t2s(t):
     h,m,s = t.strip().split(":")
     return int(h) * 3600 + int(m) * 60 + int(s)
+def s2t(s):
+    snd = s%60
+    if snd<10:
+        snd = '0'+str(snd)
+    else:
+        snd = str(snd)
+    s //= 60
+    m = s%60
+    if m<10:
+        m = '0'+str(m)
+    else:
+        m = str(m)
+    s //= 60 
+    return str(s)+ ":" + m + ":" + snd
 carColors=['red','yellow','blue','green','purple','white']
 class MyMainWindow(QMainWindow,Ui_MainWindow):
     def __init__(self,parent=None):
         super(MyMainWindow,self).__init__(parent)
         self.setupUi(self)
+        #########用于设置使画面能够全屏########
+        self.splitter1 = QtWidgets.QSplitter(Qt.Vertical)
+        
+        self.splitter1.addWidget(self.stackedWidget)
+        self.splitter1.insertWidget(0,self.ver_widget_1)
+        self.splitter1.addWidget(self.ver_widget_3)
+        self.splitter1.addWidget(self.ver_widget_4)
+        #self.splitter1.setSizes([0,311])
+        self.splitter2 = QtWidgets.QSplitter(Qt.Horizontal)
+        self.splitter2.addWidget(self.splitter1)
+        self.splitter2.addWidget(self.matplotlibwidget)
+        self.setCentralWidget(self.splitter2)
+        #####################################
         self.tempfilename=""
         self.isfileopend=False
         self.isfilechanged=False
@@ -157,7 +185,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.matplotlibwidget.axes.set_xticks([])
                 self.matplotlibwidget.axes.set_yticks([])
                 self.isdrawreset=False#只有这里能清除重置位
-                
+                self.lblStarNums1.setText("")
+                self.lblStarNums2.setText("")
                 
                 #########此部分用于按输入起止时间显示##########
                 if self.starttime==0 and self.endtime==0:
@@ -201,7 +230,14 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.matplotlibwidget.axes.set_xticks([])
                 self.matplotlibwidget.axes.set_yticks([])
                 self.isdrawreset=False#只有这里能清除重置位
-                
+                self.matplotlibwidget.draw()
+                self.lblShowTime.setText("")
+                self.lblCar1Status.setText("")
+                self.lblCar2Status.setText("")
+                self.lblCar1LastTime.setText("")
+                self.lblCar2LastTime.setText("")
+                self.lblCar1StayTime.setText("")
+                self.lblCar2StayTime.setText("")
                 self.templon_1=0#用于实时轨迹
                 self.templat_1=0#用于实时轨迹
                 self.templon_2=0#用于实时轨迹
@@ -209,8 +245,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 
             self.databasename_1='siemens_location'
             self.databasename_2='siemens_location1'
-            self.carColor_1=carColors[int(self.cbxCarColor1.currentIndex())]
-            self.carColor_2=carColors[int(self.cbxCarColor2.currentIndex())]
+            self.carColor_1='r'
+            self.carColor_2='y'
             
             self.btnStart.setEnabled(False)
             self.btnStop.setEnabled(False)
@@ -285,9 +321,10 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.isdrawreset=True
         
     def real_time_drawing(self):        
-        #now = QDateTime.currentDateTime()
+        now_time = QTime.currentTime().toString(Qt.ISODate)
+        self.lblShowTime.setText(now_time)
         QApplication.processEvents()
-        self.timer2.stop()
+        self.timer2.stop() 
         if not self.db.open():
             self.statusbar.showMessage('数据库未连接',1000)
             self.btnStart.setEnabled(True)
@@ -303,14 +340,14 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             curlon=float(query_1.value(1))
             curlat=float(query_1.value(2))
             #speed=int(query_1.value(0))
-            datetime=query_1.value(3).toString(Qt.ISODate)
+            date_time_1=query_1.value(3).toString(Qt.ISODate)
             if curlon==self.templon_1 and curlat == self.templat_1:
                 pass
             elif curlon>lonleft and curlon<lonright and curlat>latdown and curlat<latup:
                 if self.templon_1==0:
                     self.templon_1=curlon
                     self.templat_1=curlat
-                    self.lblShowDate.setText(datetime[:10])
+                    self.lblShowDate.setText(date_time_1[:10])
                 else:
                     '''if speed<5: 
                         self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='r')
@@ -321,8 +358,22 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                     self.matplotlibwidget.draw()
                     self.templon_1=curlon
                     self.templat_1=curlat
+                
+            self.lblCar1LastTime.setText(date_time_1[-8:])
+            car1StayTime = t2s(now_time)-t2s(date_time_1[-8:])
+            
+            if car1StayTime>59:
+                self.lblCar1Status.setText("未运行")
+                self.lblCar1StayTime.setText(s2t(car1StayTime))
+                self.lblStarNums1.setText("")
+            else:
+                self.lblCar1Status.setText("正在运行")
                 self.lblStarNums1.setText(str(query_1.value(4)))
-                self.lblShowTime.setText(datetime[-8:])
+                
+        else:
+            self.lblCar1Status.setText("")
+            self.lblCar1LastTime.setText("")
+            self.lblCar1StayTime.setText("")
         if self.chbxCar2.isChecked(): 
             query = QtSql.QSqlQuery("SELECT pulseCount,longitude,latitude,datetime,starnum FROM "+self.databasename_2+" ORDER BY id DESC LIMIT 1;")
             query.first()
@@ -330,12 +381,12 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             curlon=float(query.value(1))
             curlat=float(query.value(2))
             #speed=int(query.value(0))
-            datetime=query.value(3).toString(Qt.ISODate)
+            date_time_2=query.value(3).toString(Qt.ISODate)
             if curlon==self.templon_2 and curlat == self.templat_2:
                 pass
             elif curlon>lonleft and curlon<lonright and curlat>latdown and curlat<latup:
                 if self.templon_2==0:
-                    self.lblShowDate.setText(datetime[:10])
+                    self.lblShowDate.setText(date_time_2[:10])
                 else:
                     '''if speed<5: 
                         self.matplotlibwidget.axes.plot([self.templon,curlon], [self.templat,curlat], c='r')
@@ -345,11 +396,23 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                     self.matplotlibwidget.axes.plot([self.templon_2,curlon], [self.templat_2,curlat], c=self.carColor_2)
                     self.matplotlibwidget.draw()
                 self.templon_2=curlon
-                self.templat_2=curlat
-                
+                self.templat_2=curlat                
+            self.lblCar2LastTime.setText(date_time_2[-8:])
+            car2StayTime = t2s(now_time)-t2s(date_time_2[-8:])
+            if car2StayTime>59:
+                self.lblCar2Status.setText("未运行")
+                self.lblCar2StayTime.setText(s2t(car2StayTime))
+                self.lblStarNums2.setText("")
+            else:
+                self.lblCar2Status.setText("正在运行")
                 self.lblStarNums2.setText(str(query.value(4)))
-                self.lblShowTime.setText(datetime[-8:])
-                        
+        else:
+            self.lblCar2Status.setText("")
+            self.lblCar2LastTime.setText("")
+            self.lblCar2StayTime.setText("")
+        
+        #now_time = datetime.datetime.now
+        #self.lblShowTime.setText(datetime.strftime(datetime.now(),'%H:%M:%S'))               
         #self.statusbar.showMessage(datetime,5000)
         #print(datetime)
         self.db.close()
