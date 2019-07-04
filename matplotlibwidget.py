@@ -36,6 +36,7 @@ class MatplotlibWidget(FigureCanvas):
         #plt.xlim(lonleft,lonright)
         self.axes.set_xticks([])
         self.axes.set_yticks([])
+        #plt.subplots_adjust(top=1,bottom=0,left=0,right=1,hspace=0,wspace=0)
         FigureCanvas.__init__(self, self.fig)
         self.setParent(parent)
 

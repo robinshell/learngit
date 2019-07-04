@@ -1,13 +1,14 @@
 import sys
+import os
 #from PyQt5.QtGui import QIcon
 from PyQt5 import QtSql
-from PyQt5.QtWidgets import (QApplication,QMainWindow,QFileDialog)
+from PyQt5.QtWidgets import (QApplication,QMainWindow,QFileDialog,QDialog)
 from dialogdisplayform import *
 from displayform import *#
-from PyQt5.QtCore import QTimer, QTime, Qt
+from PyQt5.QtCore import QTimer, QTime, Qt, QThread
 import csv
 #import pylab
-#from datetime import datetime
+import datetime
 from matplotlib import pyplot as plt
 import matplotlib.image as mpimg
 #import time
@@ -39,14 +40,24 @@ def s2t(s):
         m = str(m)
     s //= 60 
     return str(s)+ ":" + m + ":" + snd
-carColors=['red','yellow','blue','green','purple','white']
+
+def getBetweenDay(begin_date,end_date):
+    date_list = []
+    begin_date = datetime.datetime.strptime(begin_date, "%Y-%m-%d")
+    end_date = datetime.datetime.strptime(end_date, "%Y-%m-%d")
+    while begin_date <= end_date:
+        date_str = begin_date.strftime("%Y-%m-%d")
+        date_list.append(date_str)
+        begin_date += datetime.timedelta(days=1)
+    return date_list
+
+#carColors=['red','yellow','blue','green','purple','white']
 class MyMainWindow(QMainWindow,Ui_MainWindow):
     def __init__(self,parent=None):
         super(MyMainWindow,self).__init__(parent)
         self.setupUi(self)
         #########用于设置使画面能够全屏########
         self.splitter1 = QtWidgets.QSplitter(Qt.Vertical)
-        
         self.splitter1.addWidget(self.stackedWidget)
         self.splitter1.insertWidget(0,self.ver_widget_1)
         self.splitter1.addWidget(self.ver_widget_3)
@@ -64,11 +75,11 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.endtime=0
         self.isdrawstop=True
         self.isdrawreset=True
-        self.setWindowTitle('叉车定位显示系统')
+        self.setWindowTitle('叉车定位显示系统v2.4')
         #self.setWindowIcon(QIcon('/Forklift.ico'))
         imagepath='./mapwitharea.png'
         im3 = mpimg.imread(imagepath)
-        self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup])
+        self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup],aspect='auto')
         self.matplotlibwidget.axes.plot(line1[1],line1[0],c='blue')
         self.matplotlibwidget.axes.plot(line2[1],line2[0],c='blue')
         self.matplotlibwidget.axes.plot(line3[1],line3[0],c='blue')
@@ -82,14 +93,16 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.templat_1=0#用于1号车实时轨迹
         self.templon_2=0#用于2号车实时轨迹
         self.templat_2=0#用于2号车实时轨迹
-        ######################
+        ##########这段是连接MySQL数据库############
         self.db = QtSql.QSqlDatabase.addDatabase('QMYSQL')
         self.db.setHostName('101.132.150.191')
         self.db.setDatabaseName('mysql')
         self.db.setUserName('userName')
         self.db.setPassword('house')
         self.db.setPort(3306) # 端口号
-
+        self.databasename_1='siemens_location'
+        self.databasename_2='siemens_location1'
+        #########################
         self.cbxSelectFunction.currentIndexChanged.connect(self.functionChanged)
         self.timer1=QTimer(self)
         self.timer1.timeout.connect(self.update_lines)
@@ -100,6 +113,12 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.btnStart.clicked.connect(self.startDraw)
         self.btnStop.clicked.connect(self.stopDraw)
         self.btnReset.clicked.connect(self.resetDraw)
+        self.btnDownloadData.clicked.connect(self.showDialog)
+        #########################
+        self.dialog = MyDialog()
+        self.dialog.setWindowTitle('选择下载时间与车辆')
+        self.dialog.setWindowModality(Qt.ApplicationModal)
+        #########################
         
     def openfile(self):
         self.btnStart.setEnabled(True)
@@ -111,7 +130,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.tempfilename=filename
         self.isfileopend=True
         self.isfilechanged=True
-        if self.tempfilename[-5]=="_":
+        if self.tempfilename[-1]=="2":
             self.carindex="苏B-A5339"#第二辆车
         else:
             self.carindex="苏B-A2345"#第一辆车
@@ -175,7 +194,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.matplotlibwidget.axes.cla() 
                 imagepath='./mapwitharea.png'
                 im3 = mpimg.imread(imagepath)
-                self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup])
+                self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup],aspect='auto')
                 self.matplotlibwidget.axes.plot(line1[1],line1[0],c='blue')
                 self.matplotlibwidget.axes.plot(line2[1],line2[0],c='blue')
                 self.matplotlibwidget.axes.plot(line3[1],line3[0],c='blue')
@@ -211,6 +230,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             #self.update_lines()
             self.btnStart.setEnabled(False)
             self.cbxSelectFunction.setEnabled(False)
+            self.btnDownloadData.setEnabled(False)
             self.drawspeed=self.sbxdrawspeed.value()    
             self.timer1.start(101-self.drawspeed)
             
@@ -220,7 +240,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.matplotlibwidget.axes.cla() 
                 imagepath='./mapwitharea.png'
                 im3 = mpimg.imread(imagepath)
-                self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup])
+                self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup],aspect='auto')
                 self.matplotlibwidget.axes.plot(line1[1],line1[0],c='blue')
                 self.matplotlibwidget.axes.plot(line2[1],line2[0],c='blue')
                 self.matplotlibwidget.axes.plot(line3[1],line3[0],c='blue')
@@ -242,9 +262,15 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.templat_1=0#用于实时轨迹
                 self.templon_2=0#用于实时轨迹
                 self.templat_2=0#用于实时轨迹
-                
-            self.databasename_1='siemens_location'
-            self.databasename_2='siemens_location1'
+                self.db = QtSql.QSqlDatabase.addDatabase('QMYSQL')
+                self.db.setHostName('101.132.150.191')
+                self.db.setDatabaseName('mysql')
+                self.db.setUserName('userName')
+                self.db.setPassword('house')
+                self.db.setPort(3306) # 端口号
+                self.databasename_1='siemens_location'
+                self.databasename_2='siemens_location1'
+            
             self.carColor_1='r'
             self.carColor_2='y'
             
@@ -274,6 +300,10 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                     
                 #self.matplotlibwidget.axes.scatter(self.lon[self.tempindex:self.tempindex+11], self.lat[self.tempindex:self.tempindex+11], c='y')
                 #self.matplotlibwidget.axes.plot([120.363329,120.364820],[31.542712,31.544165],c='r')
+            #print(len(self.matplotlibwidget.axes.lines))
+            if(len(self.matplotlibwidget.axes.lines)>600):
+                self.matplotlibwidget.axes.lines.pop(4)
+            #print(len(self.matplotlibwidget.axes.lines))
             self.matplotlibwidget.draw()
             self.lblShowTime.setText(self.times[self.tempindex])
             self.lblStarNums1.setText(self.starnum[self.tempindex])
@@ -298,8 +328,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             self.timer1.stop()
             self.btnStart.setEnabled(True)
             self.isdrawreset=True
-        
-        
+            self.btnDownloadData.setEnabled(True)
+            self.cbxSelectFunction.setEnabled(True)
         
     def stopDraw(self):
         self.btnStart.setEnabled(True)
@@ -311,6 +341,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
     def resetDraw(self):
         self.btnStart.setEnabled(True)
         self.btnStop.setEnabled(True)
+        self.btnDownloadData.setEnabled(True)
         if not self.isdrawstop:
             self.isdrawstop=True
             #self.ani._stop()
@@ -328,7 +359,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         if not self.db.open():
             self.statusbar.showMessage('数据库未连接',1000)
             self.btnStart.setEnabled(True)
-            #self.cbxSelectFork.setEnabled(True)
+            self.btnStop.setEnabled(True)
             self.cbxSelectFunction.setEnabled(True)
             self.isdrawreset=True
             return
@@ -369,6 +400,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             else:
                 self.lblCar1Status.setText("正在运行")
                 self.lblStarNums1.setText(str(query_1.value(4)))
+                self.lblCar1StayTime.setText("")
                 
         else:
             self.lblCar1Status.setText("")
@@ -406,6 +438,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             else:
                 self.lblCar2Status.setText("正在运行")
                 self.lblStarNums2.setText(str(query.value(4)))
+                self.lblCar2StayTime.setText("")
         else:
             self.lblCar2Status.setText("")
             self.lblCar2LastTime.setText("")
@@ -416,6 +449,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         #self.statusbar.showMessage(datetime,5000)
         #print(datetime)
         self.db.close()
+        if(len(self.matplotlibwidget.axes.lines)>600):
+                self.matplotlibwidget.axes.lines.pop(4)
         #showtime=QDateTime.currentDateTime()-now
         #showtime=showtime.toString(Qt.ISODate)
         #self.statusbar.showMessage(str(showtime),500)
@@ -424,7 +459,112 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.stackedWidget.setCurrentIndex(self.cbxSelectFunction.currentIndex())
         self.isdrawreset=True
 
+    def showDialog(self):
+        self.dialog.exec_()
+
+class MyDialog(QDialog,Ui_DialogReadFile):
+    def __init__(self,parent=None):
+        super(MyDialog,self).__init__(parent)
+        self.setupUi(self)
+        self.btnReadFileSet.clicked.connect(self.downloadSingle)
+        self.btnDownloadPeriodData.clicked.connect(self.downloadPeriod)
+        self.thread = WorkThread()
+
+    def downloadSingle(self):
+        tempDate = self.calendarWidget.selectedDate().toString(Qt.ISODate)
+        tempCar = self.comboBox.currentIndex()+1
+        #print(tempDate)
+        #print(tempCar)
+        self.thread.firstDateToWriteWithDash = tempDate
+        self.thread.lastDateToWriteWithDash = tempDate
+        self.thread.selectedCar = tempCar
+        self.thread.start()
+
+    def downloadPeriod(self):
+        tempCar = self.comboBox.currentIndex()+1
+        self.thread.selectedCar = tempCar
+        tempFirstDate = self.leFirstDate.text()
+        self.thread.firstDateToWriteWithDash = tempFirstDate[:4]+'-'+tempFirstDate[4:6]+'-'+tempFirstDate[6:]
+        tempLastDate = self.leLastDate.text()
+        self.thread.lastDateToWriteWithDash = tempLastDate[:4]+'-'+tempLastDate[4:6]+'-'+tempLastDate[6:]
+        #print(self.thread.firstDateToWriteWithDash)
+        #print(self.thread.lastDateToWriteWithDash)
+        self.thread.start()
         
+class WorkThread(QThread):
+    #trigger = pyqtSignal()
+    def __init__(self):
+        super(WorkThread,self).__init__()
+
+    def run(self):
+        downloadDatesList = getBetweenDay(self.firstDateToWriteWithDash,self.lastDateToWriteWithDash)
+        if downloadDatesList==[]:
+            myWin.statusbar.showMessage('批量下载日期输入错误',1000)
+            return
+        ##########这段是连接MySQL数据库############
+        self.db2 = QtSql.QSqlDatabase.addDatabase('QMYSQL')
+        self.db2.setHostName('101.132.150.191')
+        self.db2.setDatabaseName('mysql')
+        self.db2.setUserName('userName')
+        self.db2.setPassword('house')
+        self.db2.setPort(3306) # 端口号
+        self.databasename_1='siemens_location'
+        self.databasename_2='siemens_location1'
+        #########################################
+        
+        myWin.btnDownloadData.setEnabled(False)
+        #print(self.dateToWriteWithDash)
+        #print(self.selectedCar)
+        #print(233)
+        #print(self.q)
+        if not self.db2.open():
+            return
+        tempNum = 0#为了使下载批量数据时候更快，其值为上一天的最后一条数据的id
+        myWin.lblShowDownloadMsg.setText("数据下载中")
+        for downloadDate in downloadDatesList:
+            dateToWrite = downloadDate[:4]+downloadDate[5:7]+downloadDate[8:]
+            
+            if self.selectedCar == 1:
+                databasename = self.databasename_1
+                carindex = "苏B-A2345"
+            elif self.selectedCar == 2:
+                databasename = self.databasename_2
+                carindex = "苏B-A5339"
+                
+            threadFileName = './data/'+dateToWrite+'_'+str(self.selectedCar)+'.csv'
+            
+            if os.path.exists(threadFileName):#如果文件已经存在，则跳过
+                myWin.statusbar.showMessage(carindex+'叉车'+dateToWrite+'数据已存在，跳过下载',1000)
+                tempNum = 0
+                continue
+            
+            if tempNum>0:
+                additionMsg = " id BETWEEN "+str(tempNum)+" AND "+str(tempNum+400000)+" AND"
+            else:
+                additionMsg = ""
+            with open(threadFileName,'w') as f: 
+                writeQuery = QtSql.QSqlQuery("SELECT * FROM "+databasename+
+                                             " WHERE"+additionMsg+" DATETIME BETWEEN'"+downloadDate+" 00:00:00' AND'"
+                                             +downloadDate+" 23:59:59' LIMIT 400000;")
+                for j in range(400000):
+                    writeQuery.next()
+                    if writeQuery.value(0)==None:
+                        break
+                    else:
+                        tempNum = int(writeQuery.value(0))
+                        f.write(str(writeQuery.value(1)))
+                        for i in range(2,17):
+                            if i==13:
+                                date_time_1=writeQuery.value(i).toString(Qt.ISODate)
+                                f.write(','+date_time_1[:10]+','+date_time_1[11:])
+                            else:
+                                f.write(','+str(writeQuery.value(i)))
+                    f.write("\n")
+                #print("201906"+str(dtbw)+"写入成功")
+                myWin.statusbar.showMessage(carindex+'叉车'+dateToWrite+'数据下载成功',1000)
+        self.db2.close()
+        myWin.lblShowDownloadMsg.setText("")
+        myWin.btnDownloadData.setEnabled(True)
         
 if __name__=="__main__":
     app=QApplication(sys.argv)
