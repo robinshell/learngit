@@ -75,7 +75,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.endtime=0
         self.isdrawstop=True
         self.isdrawreset=True
-        self.setWindowTitle('叉车定位显示系统v2.4beta')
+        self.setWindowTitle('叉车定位显示系统v2.5')
+        self.fileDate=""
         #self.setWindowIcon(QIcon('/Forklift.ico'))
         imagepath='./mapwitharea.png'
         im3 = mpimg.imread(imagepath)
@@ -130,11 +131,10 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.tempfilename=filename
         self.isfileopend=True
         self.isfilechanged=True
-        if self.tempfilename[-1]=="2":
+        if self.tempfilename[-5]=="2":
             self.carindex="苏B-A5339"#第二辆车
         else:
-            self.carindex="苏B-A2345"#第一辆车
-        self.matplotlibwidget.fig.suptitle(self.carindex)    
+            self.carindex="苏B-A2345"#第一辆车    
         
         with open(filename) as f:
             reader = list(csv.reader(f))
@@ -148,7 +148,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
             endflag=0#当csv读到空行时变为当前行数，停止继续读取
             temp_time=reader[0][13]
             former_time=t2s(reader[0][13])
-            self.lblShowDate.setText(str(reader[0][12]))
+            self.fileDate = str(reader[0][12])
+            self.lblShowDate.setText(self.fileDate)
             try:
                 for i in range(1,le):
                     if not reader[i][0]:
@@ -191,7 +192,9 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.endtime = tempendtime
                 self.isdrawreset=True
             if self.isdrawreset:
-                self.matplotlibwidget.axes.cla() 
+                self.matplotlibwidget.axes.cla()
+                self.matplotlibwidget.fig.suptitle(self.carindex,color='r',fontsize=15)
+                self.lblShowDate.setText(self.fileDate)
                 imagepath='./mapwitharea.png'
                 im3 = mpimg.imread(imagepath)
                 self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup],aspect='auto')
@@ -237,7 +240,8 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         elif self.cbxSelectFunction.currentIndex()==1:
             
             if self.isdrawreset:
-                self.matplotlibwidget.axes.cla() 
+                self.matplotlibwidget.axes.cla()
+                self.matplotlibwidget.fig.suptitle("")
                 imagepath='./mapwitharea.png'
                 im3 = mpimg.imread(imagepath)
                 self.matplotlibwidget.axes.imshow(im3,extent=[lonleft,lonright,latdown,latup],aspect='auto')
@@ -539,13 +543,15 @@ class WorkThread(QThread):
             elif self.selectedCar == 2:
                 databasename = self.databasename_2
                 carindex = "苏B-A5339"
-                
+            if not os.path.exists('./data'):
+                os.mkdir('./data')    
             threadFileName = './data/'+dateToWrite+'_'+str(self.selectedCar)+'.csv'
             
-            if os.path.exists(threadFileName):#如果文件已经存在，则跳过
-                myWin.statusbar.showMessage(carindex+'叉车'+dateToWrite+'数据已存在，跳过下载',1000)
-                tempNum = 0
-                continue
+            if os.path.exists(threadFileName):#如果文件已经存在
+                if os.path.getsize(threadFileName):#且文件大于0kb,则跳过
+                    myWin.statusbar.showMessage(carindex+'叉车'+dateToWrite+'数据已存在，跳过下载',1000)
+                    tempNum = 0
+                    continue
             
             if tempNum>0:
                 additionMsg = " id BETWEEN "+str(tempNum)+" AND "+str(tempNum+400000)+" AND"
