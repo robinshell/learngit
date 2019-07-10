@@ -75,7 +75,7 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
         self.endtime=0
         self.isdrawstop=True
         self.isdrawreset=True
-        self.setWindowTitle('叉车定位显示系统v2.4')
+        self.setWindowTitle('叉车定位显示系统v2.4beta')
         #self.setWindowIcon(QIcon('/Forklift.ico'))
         imagepath='./mapwitharea.png'
         im3 = mpimg.imread(imagepath)
@@ -389,13 +389,17 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                     self.matplotlibwidget.draw()
                     self.templon_1=curlon
                     self.templat_1=curlat
-                
+            now_time = QTime.currentTime().toString(Qt.ISODate)    
             self.lblCar1LastTime.setText(date_time_1[-8:])
             car1StayTime = t2s(now_time)-t2s(date_time_1[-8:])
             
             if car1StayTime>59:
                 self.lblCar1Status.setText("未运行")
                 self.lblCar1StayTime.setText(s2t(car1StayTime))
+                self.lblStarNums1.setText("")
+            elif car1StayTime<0:
+                self.lblCar1Status.setText("未运行")
+                self.lblCar1StayTime.setText('前一天')
                 self.lblStarNums1.setText("")
             else:
                 self.lblCar1Status.setText("正在运行")
@@ -430,10 +434,15 @@ class MyMainWindow(QMainWindow,Ui_MainWindow):
                 self.templon_2=curlon
                 self.templat_2=curlat                
             self.lblCar2LastTime.setText(date_time_2[-8:])
+            now_time = QTime.currentTime().toString(Qt.ISODate)
             car2StayTime = t2s(now_time)-t2s(date_time_2[-8:])
             if car2StayTime>59:
                 self.lblCar2Status.setText("未运行")
                 self.lblCar2StayTime.setText(s2t(car2StayTime))
+                self.lblStarNums2.setText("")
+            elif car2StayTime<0:
+                self.lblCar2Status.setText("未运行")
+                self.lblCar2StayTime.setText("前一天")
                 self.lblStarNums2.setText("")
             else:
                 self.lblCar2Status.setText("正在运行")

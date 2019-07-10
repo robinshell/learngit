@@ -24,6 +24,10 @@ class MatplotlibWidget(FigureCanvas):
         # 配置中文显示
         plt.rcParams['font.family'] = ['SimHei']  # 用来正常显示中文标签
         plt.rcParams['axes.unicode_minus'] = False  # 用来正常显示负号
+        plt.axis('off')
+        plt.gca().xaxis.set_major_locator(plt.NullLocator()) 
+        plt.gca().yaxis.set_major_locator(plt.NullLocator()) 
+        plt.subplots_adjust(top=1,bottom=0,left=0,right=1,hspace=0,wspace=0) 
         #self.layout=QVBoxLayout(self)
         self.fig = Figure([10,5.6])  # 新建一个figure
         self.axes = self.fig.add_subplot(111)  # 建立一个子图，如果要建立复合图，可以在这里修改
@@ -34,6 +38,8 @@ class MatplotlibWidget(FigureCanvas):
         #self.axes.plot(line4[1],line4[0],c='blue')          
         #plt.ylim(latdown,latup )
         #plt.xlim(lonleft,lonright)
+        """这条语句去除白边"""
+        self.fig.subplots_adjust(top=1,bottom=0,left=0,right=1,hspace=0,wspace=0) 
         self.axes.set_xticks([])
         self.axes.set_yticks([])
         #plt.subplots_adjust(top=1,bottom=0,left=0,right=1,hspace=0,wspace=0)
