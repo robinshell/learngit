@@ -51,7 +51,7 @@
       <x>10</x>
       <y>100</y>
       <width>311</width>
-      <height>241</height>
+      <height>281</height>
      </rect>
     </property>
     <property name="sizePolicy">
@@ -238,14 +238,75 @@
      <widget class="QLabel" name="lblShowDownloadMsg">
       <property name="geometry">
        <rect>
-        <x>200</x>
+        <x>191</x>
         <y>210</y>
-        <width>72</width>
-        <height>15</height>
+        <width>81</width>
+        <height>20</height>
        </rect>
       </property>
       <property name="text">
        <string/>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_11">
+      <property name="geometry">
+       <rect>
+        <x>60</x>
+        <y>240</y>
+        <width>41</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 0, 0);</string>
+      </property>
+      <property name="text">
+       <string>慢</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_12">
+      <property name="geometry">
+       <rect>
+        <x>140</x>
+        <y>240</y>
+        <width>41</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 170, 0);</string>
+      </property>
+      <property name="text">
+       <string>中</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_13">
+      <property name="geometry">
+       <rect>
+        <x>220</x>
+        <y>240</y>
+        <width>41</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="styleSheet">
+       <string notr="true">background-color: rgb(255, 255, 0);</string>
+      </property>
+      <property name="text">
+       <string>快</string>
+      </property>
+     </widget>
+     <widget class="QLabel" name="label_14">
+      <property name="geometry">
+       <rect>
+        <x>10</x>
+        <y>240</y>
+        <width>41</width>
+        <height>16</height>
+       </rect>
+      </property>
+      <property name="text">
+       <string>速度：</string>
       </property>
      </widget>
     </widget>
@@ -262,6 +323,9 @@
       <layout class="QGridLayout" name="gridLayout_2">
        <item row="1" column="1">
         <widget class="QCheckBox" name="chbxCar1">
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(255, 0, 0);</string>
+         </property>
          <property name="text">
           <string>苏B-A2345</string>
          </property>
@@ -276,6 +340,9 @@
        </item>
        <item row="1" column="2">
         <widget class="QCheckBox" name="chbxCar2">
+         <property name="styleSheet">
+          <string notr="true">background-color: rgb(255, 255, 0);</string>
+         </property>
          <property name="text">
           <string>苏B-A5339</string>
          </property>
